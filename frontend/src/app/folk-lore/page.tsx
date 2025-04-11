@@ -1,9 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import Navbar from "@/components/home/navbar"
-import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -13,7 +11,6 @@ export default function FolkLorePage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -47,29 +44,6 @@ export default function FolkLorePage() {
       const data = await response.json()
       setFolkLore(data.folk_lore)
       setSubmitted(true)
-      
-      // Also generate an image for the location
-      try {
-        const imageResponse = await fetch("http://localhost:8000/content/generate-image/", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${localStorage.getItem('accessToken')}`
-          },
-          body: JSON.stringify({
-            location: location.trim()
-          }),
-        })
-        
-        if (imageResponse.ok) {
-          const imageData = await imageResponse.json()
-          setImageUrl(imageData.image_url)
-        }
-      } catch (err) {
-        // Just log image errors but don't fail the whole operation
-        console.error("Error generating image:", err)
-      }
-      
     } catch (err) {
       console.error("Error generating folk lore:", err)
       setError(err instanceof Error ? err.message : "An error occurred while generating folk lore")
@@ -82,7 +56,6 @@ export default function FolkLorePage() {
     setLocation("")
     setFolkLore("")
     setSubmitted(false)
-    setImageUrl(null)
     setError(null)
   }
 
@@ -155,29 +128,13 @@ export default function FolkLorePage() {
               </button>
             </div>
             
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="md:flex">
-                {imageUrl && (
-                  <div className="md:flex-shrink-0 h-64 md:h-auto md:w-64 relative">
-                    <Image
-                      src={imageUrl}
-                      alt={`Illustration of ${location}`}
-                      className="w-full h-full object-cover"
-                      width={300}
-                      height={300}
-                    />
-                  </div>
-                )}
-                
-                <div className="p-6">
-                  <div className="uppercase tracking-wide text-sm text-[#dd8256] font-semibold">
-                    Traditional Tale
-                  </div>
-                  
-                  <div className="mt-4 whitespace-pre-line text-gray-700 prose">
-                    {folkLore}
-                  </div>
-                </div>
+            <div className="bg-white rounded-xl shadow-md overflow-hidden p-6">
+              <div className="uppercase tracking-wide text-sm text-[#dd8256] font-semibold">
+                Traditional Tale
+              </div>
+              
+              <div className="mt-4 whitespace-pre-line text-gray-700 prose max-w-none">
+                {folkLore}
               </div>
             </div>
             
