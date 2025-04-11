@@ -1,6 +1,8 @@
 from dotenv import load_dotenv
-from pydantic_ai import Agent
+from pydantic_ai import BinaryContent
+from pydantic_ai.agent import Agent
 from pydantic import BaseModel
+from together import Together
 import requests
 from urllib.parse import quote_plus
 from typing import List, Dict
@@ -11,6 +13,7 @@ load_dotenv()
 
 os.environ['GOOGLE_API_KEY'] = os.getenv('GEMINI_API_KEY')
 serp_api_key = os.getenv('SERP_API_KEY')
+together_api_key = os.getenv('TOGETHER_API_KEY')
 
 def generate_folk_lore(location: str):
     MODEL = 'gemini-2.0-flash'
@@ -155,4 +158,50 @@ def generate_itinerary(location: str, duration: int = 3, interests: str = ""):
         enriched_data.append(day_plan)
         
     return enriched_data
+    
+
+def identify_image_and_generate_content(image_data: bytes, content_type: str = None):
+    MODEL = 'gemini-2.0-flash'
+    agent = Agent(
+        model=MODEL,
+        result_type=str,
+        system_prompt="""You are a cultural historian specializing in world heritage sites, monuments,
+        and landmarks. You have extensive knowledge about the history, architecture, cultural significance,
+        and interesting stories about historic sites around the world.
+        
+        When given an image of a monument or landmark, analyze it carefully and provide:
+        1. The name and location of the landmark (if recognizable)
+        2. Historical facts about when and why it was built
+        3. Cultural significance of the site
+        4. An interesting story or legend associated with it
+        
+        If you're unsure about the exact monument, provide your best educated guess
+        while acknowledging uncertainty. Focus on being informative and engaging."""
+    )
+    prompt = "Analyze this image of a historic monument or landmark."
+    prompt += " Provide detailed information about its history, cultural significance, and any interesting stories."
+    
+    # Use the provided content type or default to image/jpeg
+    if not content_type:
+        content_type = "image/jpeg"
+    
+    # Run the agent with the image
+    response = agent.run_sync([
+        prompt,
+        BinaryContent(data=image_data, media_type=content_type)
+    ])
+    
+    return response.data
+
+def generate_image(location: str):
+    MODEL="stabilityai/stable-diffusion-xl-base-1.0"
+    client = Together(api_key=os.getenv("TOGETHER_API_KEY"))
+    response = client.images.generate(
+            prompt=f"Generate an image of {location} in a cartoon and colourful art style (similar to modern art)",
+            model=MODEL
+        )
+    
+    
+    image_url = response.data[0].url
+    return image_url
     
