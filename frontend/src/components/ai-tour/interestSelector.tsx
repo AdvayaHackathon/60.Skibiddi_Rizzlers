@@ -2,32 +2,24 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation" 
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface InterestSelectionProps {
   onSubmit: (interests: string[]) => void
   onBack: () => void
+  isLoading?: boolean;
 }
 
 // Sample interests data
 const interestCategories = [
-  "Must-see Attractions",
-  "Great Food",
-  "Hidden Gems",
-  "Tours & Experiences",
-  "French Colonial Architecture",
-  "Spiritual Tourism",
-  "Beach Relaxation",
-  "Local Cuisine",
-  "Yoga and Wellness",
-  "Art and Craft",
-  "Adventure and Sports",
-  "Arts & Theatre",
+  "Adventure", "Art & Culture", "Family-friendly", "Food & Drink", 
+  "Historical", "Luxury", "Nature", "Nightlife", "Relaxation", 
+  "Shopping", "Spiritual", "Wildlife"
 ]
 
-export default function InterestSelection({ onSubmit, onBack }: InterestSelectionProps) {
+export default function InterestSelection({ onSubmit, onBack, isLoading = false }: InterestSelectionProps) {
   const [selectedInterests, setSelectedInterests] = useState<string[]>([])
-  const [customInterest, setCustomInterest] = useState("")
-  const [showCustomInput, setShowCustomInput] = useState(false)
 
   const router = useRouter()
 
@@ -39,106 +31,65 @@ export default function InterestSelection({ onSubmit, onBack }: InterestSelectio
     }
   }
 
-  const addCustomInterest = () => {
-    if (customInterest.trim() && !selectedInterests.includes(customInterest)) {
-      setSelectedInterests([...selectedInterests, customInterest])
-      setCustomInterest("")
-      setShowCustomInput(false)
+  const handleSubmit = () => {
+    if (selectedInterests.length > 0) {
+      onSubmit(selectedInterests)
+      router.push("/ai-tour/itinerary") 
     }
   }
 
-  const handleSubmit = () => {
-    onSubmit(selectedInterests)
-    router.push("/ai-tour/itinerary") 
-  }
-
   return (
-    <div className="flex flex-col items-center">
-      <h1 className="mb-2 text-center text-3xl font-bold">Pick your interests</h1>
-      <p className="mb-8 text-center text-gray-600">Select all that apply.</p>
-
-      <div className="mb-8 flex w-full flex-wrap justify-center gap-2">
-        {interestCategories.map((interest) => (
-          <button
-            key={interest}
-            onClick={() => toggleInterest(interest)}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-              selectedInterests.includes(interest)
-                ? "bg-green-100 text-green-800"
-                : "bg-gray-100 text-gray-800 hover:bg-gray-200"
-            }`}
-          >
-            {selectedInterests.includes(interest) && (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mr-1 inline-block h-4 w-4 text-green-600"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            )}
-            {interest}
-          </button>
-        ))}
-
-        {showCustomInput ? (
-          <div className="flex w-full max-w-xs items-center rounded-full bg-gray-100 px-3">
-            <input
-              type="text"
-              value={customInterest}
-              onChange={(e) => setCustomInterest(e.target.value)}
-              placeholder="Enter custom interest"
-              className="flex-1 bg-transparent py-2 text-sm focus:outline-none"
-              onKeyDown={(e) => e.key === "Enter" && addCustomInterest()}
-            />
-            <button onClick={addCustomInterest} className="ml-2 text-gray-600 hover:text-gray-900">
-              Add
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setShowCustomInput(true)}
-            className="rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-200"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="mr-1 inline-block h-4 w-4"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            Add interest
-          </button>
-        )}
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-[#0b2727] mb-2">What are you interested in?</h2>
+        <p className="text-[#6e7074]">Select all that apply to personalize your trip</p>
       </div>
 
-      <div className="flex w-full max-w-md justify-between">
-        <button onClick={onBack} className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:underline">
-          Back
-        </button>
-        <button
-          onClick={handleSubmit}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {interestCategories.map((interest) => (
+          <div key={interest} className="flex items-center space-x-2">
+            <Checkbox 
+              id={interest} 
+              checked={selectedInterests.includes(interest)}
+              onCheckedChange={() => toggleInterest(interest)}
+              disabled={isLoading}
+            />
+            <label 
+              htmlFor={interest} 
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              {interest}
+            </label>
+          </div>
+        ))}
+      </div>
 
-          disabled={selectedInterests.length === 0}
-          className="rounded-full bg-black px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+      <div className="flex space-x-4">
+        <Button 
+          variant="outline" 
+          onClick={onBack}
+          disabled={isLoading}
+          className="w-1/3"
         >
-          Submit
-        </button>
+          Back
+        </Button>
+        <Button 
+          onClick={handleSubmit} 
+          className="w-2/3 bg-[#dd8256] hover:bg-[#c27249] text-white"
+          disabled={isLoading || selectedInterests.length === 0}
+        >
+          {isLoading ? (
+            <span className="flex items-center justify-center">
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Generating Itinerary...
+            </span>
+          ) : (
+            "Generate Itinerary"
+          )}
+        </Button>
       </div>
     </div>
   )
