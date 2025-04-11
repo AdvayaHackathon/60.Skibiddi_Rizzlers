@@ -9,6 +9,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from .agents import generate_folk_lore, generate_itinerary, identify_image_and_generate_content, generate_image
+from .models import Itinerary, ItineraryDay, ItineraryImage
 
 # Create your views here.
 @swagger_auto_schema(
@@ -83,8 +84,8 @@ def generate_folk_lore_view(request):
         required=['location'],
         properties={
             'location': openapi.Schema(type=openapi.TYPE_STRING, description='Location to generate itinerary for'),
-            'duration': openapi.Schema(type=openapi.TYPE_INTEGER, description='Number of days for the trip, default is 3'),
-            'interests': openapi.Schema(type=openapi.TYPE_STRING, description='User interests to customize the itinerary, optional'),
+            'days': openapi.Schema(type=openapi.TYPE_INTEGER, description='Number of days for the trip, default is 3'),
+            'preferences': openapi.Schema(type=openapi.TYPE_STRING, description='User preferences to customize the itinerary, optional'),
         },
     ),
     responses={
@@ -121,9 +122,11 @@ def generate_folk_lore_view(request):
     }
 )
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])  # Ensure user is authenticated
 def generate_itinerary_view(request):
     """
-    Generate a detailed travel itinerary based on location, duration, and interests.
+    Generate a detailed travel itinerary based on location, duration, and preferences.
+    Saves the itinerary to the user's profile.
     """
     try:
         data = json.loads(request.body)
@@ -136,29 +139,53 @@ def generate_itinerary_view(request):
             )
         
         # Get optional parameters with defaults
-        duration = data.get('duration', 3)
-        interests = data.get('interests', "")
+        days = data.get('days', 3)
+        preferences = data.get('preferences', "")
         
-        # Validate duration is a positive integer
+        # Validate days is a positive integer
         try:
-            duration = int(duration)
-            if duration <= 0:
+            days = int(days)
+            if days <= 0:
                 return Response(
-                    {"error": "Duration must be a positive integer"}, 
+                    {"error": "Days must be a positive integer"}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
         except (ValueError, TypeError):
             return Response(
-                {"error": "Duration must be a valid integer"}, 
+                {"error": "Days must be a valid integer"}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         # Call the itinerary generation function
-        itinerary = generate_itinerary(location, duration, interests)
+        itinerary = generate_itinerary(location, days, preferences)
         
-        # Convert the Pydantic objects to dictionaries for serialization
+        # Create a new Itinerary object
+        itinerary_obj = Itinerary.objects.create(
+            user=request.user,
+            location=location,
+            days=days,
+            preferences=preferences
+        )
+        
+        # Convert the Pydantic objects to dictionaries and save to database
         itinerary_data = []
         for day in itinerary:
+            # Create ItineraryDay
+            day_obj = ItineraryDay.objects.create(
+                itinerary=itinerary_obj,
+                day_number=day.day_number,
+                description=day.itinerary,
+                location_description=day.location_description
+            )
+            
+            # Create ItineraryImage for each image URL
+            for image_url in day.location_images:
+                ItineraryImage.objects.create(
+                    itinerary_day=day_obj,
+                    image_url=image_url
+                )
+            
+            # Format response data
             itinerary_data.append({
                 'day_number': day.day_number,
                 'itinerary': day.itinerary,
@@ -312,5 +339,228 @@ def generate_image_view(request):
     except Exception as e:
         return Response(
             {"error": str(e)}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@swagger_auto_schema(
+    method='get',
+    responses={
+        status.HTTP_200_OK: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'itineraries': openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            'id': openapi.Schema(type=openapi.TYPE_INTEGER, description='Itinerary ID'),
+                            'location': openapi.Schema(type=openapi.TYPE_STRING, description='Destination location'),
+                            'days': openapi.Schema(type=openapi.TYPE_INTEGER, description='Number of days'),
+                            'preferences': openapi.Schema(type=openapi.TYPE_STRING, description='User preferences'),
+                            'created_at': openapi.Schema(type=openapi.TYPE_STRING, description='Creation date'),
+                            'days_details': openapi.Schema(
+                                type=openapi.TYPE_ARRAY,
+                                items=openapi.Schema(
+                                    type=openapi.TYPE_OBJECT,
+                                    properties={
+                                        'day_number': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                        'description': openapi.Schema(type=openapi.TYPE_STRING),
+                                        'location_description': openapi.Schema(type=openapi.TYPE_STRING),
+                                        'images': openapi.Schema(
+                                            type=openapi.TYPE_ARRAY,
+                                            items=openapi.Schema(type=openapi.TYPE_STRING)
+                                        )
+                                    }
+                                )
+                            )
+                        }
+                    )
+                )
+            }
+        ),
+        status.HTTP_401_UNAUTHORIZED: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'detail': openapi.Schema(type=openapi.TYPE_STRING, description='Authentication credentials were not provided.')
+            }
+        ),
+        status.HTTP_500_INTERNAL_SERVER_ERROR: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'error': openapi.Schema(type=openapi.TYPE_STRING, description='Error message')
+            }
+        ),
+    }
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_itineraries(request):
+    """
+    Retrieve all itineraries created by the authenticated user.
+    Returns detailed information including all days and images.
+    """
+    try:
+        # Get all itineraries for the current user
+        itineraries = Itinerary.objects.filter(user=request.user).order_by('-created_at')
+        
+        # Prepare the response data
+        itineraries_data = []
+        
+        for itinerary in itineraries:
+            # Get all days for this itinerary
+            days_data = []
+            for day in itinerary.itinerary_days.all().order_by('day_number'):
+                # Get all images for this day
+                images = [img.image_url for img in day.images.all()]
+                
+                days_data.append({
+                    'day_number': day.day_number,
+                    'description': day.description,
+                    'location_description': day.location_description,
+                    'images': images
+                })
+            
+            # Format the created_at date
+            created_at = itinerary.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            
+            # Add this itinerary to the response
+            itineraries_data.append({
+                'id': itinerary.id,
+                'location': itinerary.location,
+                'days': itinerary.days,
+                'preferences': itinerary.preferences,
+                'created_at': created_at,
+                'days_details': days_data
+            })
+        
+        return Response(
+            {"itineraries": itineraries_data},
+            status=status.HTTP_200_OK
+        )
+    
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@swagger_auto_schema(
+    method='get',
+    manual_parameters=[
+        openapi.Parameter(
+            name='id',
+            in_=openapi.IN_PATH,
+            type=openapi.TYPE_INTEGER,
+            required=True,
+            description='Itinerary ID'
+        )
+    ],
+    responses={
+        status.HTTP_200_OK: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'id': openapi.Schema(type=openapi.TYPE_INTEGER, description='Itinerary ID'),
+                'location': openapi.Schema(type=openapi.TYPE_STRING, description='Destination location'),
+                'days': openapi.Schema(type=openapi.TYPE_INTEGER, description='Number of days'),
+                'preferences': openapi.Schema(type=openapi.TYPE_STRING, description='User preferences'),
+                'created_at': openapi.Schema(type=openapi.TYPE_STRING, description='Creation date'),
+                'days_details': openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            'day_number': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'description': openapi.Schema(type=openapi.TYPE_STRING),
+                            'location_description': openapi.Schema(type=openapi.TYPE_STRING),
+                            'images': openapi.Schema(
+                                type=openapi.TYPE_ARRAY,
+                                items=openapi.Schema(type=openapi.TYPE_STRING)
+                            )
+                        }
+                    )
+                )
+            }
+        ),
+        status.HTTP_404_NOT_FOUND: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'error': openapi.Schema(type=openapi.TYPE_STRING, description='Itinerary not found')
+            }
+        ),
+        status.HTTP_401_UNAUTHORIZED: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'detail': openapi.Schema(type=openapi.TYPE_STRING, description='Authentication credentials were not provided.')
+            }
+        ),
+        status.HTTP_403_FORBIDDEN: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'error': openapi.Schema(type=openapi.TYPE_STRING, description='You do not have permission to access this itinerary')
+            }
+        ),
+        status.HTTP_500_INTERNAL_SERVER_ERROR: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'error': openapi.Schema(type=openapi.TYPE_STRING, description='Error message')
+            }
+        ),
+    }
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_itinerary_by_id(request, id):
+    """
+    Retrieve a specific itinerary by its ID.
+    Only returns the itinerary if it belongs to the authenticated user.
+    """
+    try:
+        # Try to get the itinerary
+        try:
+            itinerary = Itinerary.objects.get(id=id)
+        except Itinerary.DoesNotExist:
+            return Response(
+                {"error": "Itinerary not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if the itinerary belongs to the user
+        if itinerary.user != request.user:
+            return Response(
+                {"error": "You do not have permission to access this itinerary"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get all days for this itinerary
+        days_data = []
+        for day in itinerary.itinerary_days.all().order_by('day_number'):
+            # Get all images for this day
+            images = [img.image_url for img in day.images.all()]
+            
+            days_data.append({
+                'day_number': day.day_number,
+                'description': day.description,
+                'location_description': day.location_description,
+                'images': images
+            })
+        
+        # Format the created_at date
+        created_at = itinerary.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Create the response data
+        itinerary_data = {
+            'id': itinerary.id,
+            'location': itinerary.location,
+            'days': itinerary.days,
+            'preferences': itinerary.preferences,
+            'created_at': created_at,
+            'days_details': days_data
+        }
+        
+        return Response(itinerary_data, status=status.HTTP_200_OK)
+    
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
