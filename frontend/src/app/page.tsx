@@ -1,6 +1,5 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
 import Navbar from "@/components/home/navbar";
 
@@ -86,17 +85,9 @@ export default function Home() {
             {/* Search Bar */}
             <div className="w-full max-w-[810px] bg-white rounded-[50px] shadow-[0px_2px_10px_#00000026] flex flex-col sm:flex-row mt-8 sm:mt-12 md:mt-20">
               <div className="flex items-center px-6 sm:px-10 py-3 sm:py-5 rounded-[50px_50px_0_0] sm:rounded-[50px_0_0_50px]">
-                {/* <Image
-                  src="https://c.animaapp.com/m98xlrfqw6Iebg/img/group-1.png"
-                  width={24}
-                  height={24}
-                  className="w-6 h-6"
-                  alt="Location icon"
-
-                /> */}
                 <svg width="24" height="25" viewBox="0 0 24 25" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 23C17.5 18.6 23 14.66 23 9.8C23 4.93989 18.0751 1 12 1C5.92487 1 1 4.93989 1 9.8C1 14.66 6.5 18.6 12 23Z" stroke="#EE6E6E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                  <path d="M12 13.2222C14.6037 13.2222 16.7143 11.5806 16.7143 9.55552C16.7143 7.53048 14.6037 5.88885 12 5.88885C9.39632 5.88885 7.28574 7.53048 7.28574 9.55552C7.28574 11.5806 9.39632 13.2222 12 13.2222Z" stroke="#EE6E6E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M12 23C17.5 18.6 23 14.66 23 9.8C23 4.93989 18.0751 1 12 1C5.92487 1 1 4.93989 1 9.8C1 14.66 6.5 18.6 12 23Z" stroke="#EE6E6E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M12 13.2222C14.6037 13.2222 16.7143 11.5806 16.7143 9.55552C16.7143 7.53048 14.6037 5.88885 12 5.88885C9.39632 5.88885 7.28574 7.53048 7.28574 9.55552C7.28574 11.5806 9.39632 13.2222 12 13.2222Z" stroke="#EE6E6E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
 
                 <div className="ml-2.5">
@@ -107,54 +98,6 @@ export default function Home() {
                     Where are you going?
                   </div>
                 </div>
-              </div>
-
-              <Separator orientation="horizontal" className="sm:hidden" />
-
-              {/* <div className="flex items-center px-3 sm:px-[47px] py-3 sm:py-5">
-                <Image
-                  width={24}
-                  height={24}
-                  className="w-[23.5px] h-[23.5px]"
-                  alt="Distance icon"
-                  src="https://c.animaapp.com/m98xlrfqw6Iebg/img/group-2.png"
-                />
-                <div className="ml-2.5">
-                  <div className="font-['Montserrat',Helvetica] font-medium text-heading-color text-sm sm:text-base">
-                    Distance
-                  </div>
-                  <div className="font-['Montserrat',Helvetica] font-medium text-text-color text-xs sm:text-sm">
-                    Distance k/m
-                  </div>
-                </div>
-              </div> */}
-
-              <Separator orientation="horizontal" className="sm:hidden" />
-
-              <div className="flex items-center px-3 sm:px-[47px] py-3 sm:py-5">
-                <Image
-                  width={23}
-                  height={23}
-                  className="w-[22.6px] h-[22.6px]"
-                  alt="People icon"
-                  src="https://c.animaapp.com/m98xlrfqw6Iebg/img/vector.svg"
-                />
-                <div className="ml-2.5">
-                  <div className="font-['Montserrat',Helvetica] font-medium text-heading-color text-sm sm:text-base">
-                    Max People
-                  </div>
-
-                </div>
-              </div>
-
-              <div className="w-full sm:w-auto bg-secondary-color sm:h-full flex items-center justify-center">
-                {/* <SearchIcon className="w-[25px] h-[25px] text-black" /> */}
-                <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M0 10C0 4.47715 4.47715 0 10 0H44C46.2091 0 48 1.79086 48 4V38C48 43.5229 43.5228 48 38 48H4C1.79086 48 0 46.2091 0 44V10Z" fill="#FF3967" />
-                  <path d="M29.7108 29.6726L35 35L29.7108 29.6726ZM32.5556 22.7778C32.5556 28.1779 28.1779 32.5556 22.7778 32.5556C17.3777 32.5556 13 28.1779 13 22.7778C13 17.3777 17.3777 13 22.7778 13C28.1779 13 32.5556 17.3777 32.5556 22.7778Z" fill="#FF3967" />
-                  <path d="M29.7108 29.6726L35 35M32.5556 22.7778C32.5556 28.1779 28.1779 32.5556 22.7778 32.5556C17.3777 32.5556 13 28.1779 13 22.7778C13 17.3777 17.3777 13 22.7778 13C28.1779 13 32.5556 17.3777 32.5556 22.7778Z" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-
               </div>
             </div>
 
