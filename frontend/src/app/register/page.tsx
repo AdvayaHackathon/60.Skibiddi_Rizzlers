@@ -1,34 +1,77 @@
 "use client"
 
-import type React from "react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 
 export default function Register() {
+  const router = useRouter()
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    username: "",
     email: "",
     password: "",
-    mobile: "",
+    confirmPassword: "",
   })
+  const [error, setError] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Form submitted:", formData)
+    setError("")
+    
+    // Validate form
+    if (!formData.username || !formData.email || !formData.password || !formData.confirmPassword) {
+      setError("All fields are required")
+      return
+    }
+    
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match")
+      return
+    }
+    
+    setIsLoading(true)
+    
+    try {
+      const response = await fetch("http://localhost:8000/user/create/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+        }),
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.detail || Object.values(data).flat().join(", ") || "Registration failed")
+      }
+      
+      // Registration successful, redirect to login
+      router.push("/login")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred during registration")
+      console.error("Registration error:", err)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#ffffff] relative overflow-hidden">
-      {/* Background pattern - would be replaced with actual image in production */}
+      {/* Background pattern */}
       <div className="absolute inset-0 opacity-10 z-0">
         <Image
           src="/login-bg.jpg"
@@ -42,82 +85,67 @@ export default function Register() {
       <div className="relative z-10 w-full max-w-md px-4">
         <div className="text-center mb-8 relative">
           <h1 className="text-[#0b2727] text-3xl md:text-4xl font-bold mb-2">CREATE AN ACCOUNT</h1>
-
-
-
           <p className="text-[#6e7074] text-sm">
             By creating an account, you agree to our{" "}
             <a href="#" className="text-[#ff3967] hover:underline">
               Terms and Conditions
-            </a>{" "}
-            {/* <a href="#" className="text-[#ff3967] hover:underline">
-              Privacy policy
-            </a>{" "}
-            and{" "}
-            <a href="#" className="text-[#ff3967] hover:underline">
-              Terms of use
-            </a> */}
-
+            </a>
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 z-10">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Input
-                name="firstName"
-                placeholder="First Name"
-                value={formData.firstName}
-                onChange={handleChange}
-                className="rounded-full border-[#676666]  h-12 px-4"
-              />
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
+              {error}
             </div>
-            <div>
-              <Input
-                name="lastName"
-                placeholder="Last Name"
-                value={formData.lastName}
-                onChange={handleChange}
-                className="rounded-full border-[#676666] h-12 px-4"
-              />
-            </div>
-          </div>
+          )}
+          
+          <Input
+            name="username"
+            placeholder="Username"
+            value={formData.username}
+            onChange={handleChange}
+            disabled={isLoading}
+            className="rounded-full border-[#676666] h-12 px-4"
+          />
 
           <Input
             name="email"
             type="email"
-            placeholder="Enter Email"
+            placeholder="Email Address"
             value={formData.email}
             onChange={handleChange}
+            disabled={isLoading}
             className="rounded-full border-[#676666] h-12 px-4"
           />
 
           <Input
             name="password"
             type="password"
-            placeholder="Enter Password"
+            placeholder="Password"
             value={formData.password}
             onChange={handleChange}
+            disabled={isLoading}
             className="rounded-full border-[#676666] h-12 px-4"
           />
 
           <Input
-            name="mobile"
-            type="tel"
-            placeholder="Mobile Number"
-            value={formData.mobile}
+            name="confirmPassword"
+            type="password"
+            placeholder="Confirm Password"
+            value={formData.confirmPassword}
             onChange={handleChange}
-            className="rounded-full border-[#676666]  h-12 px-4"
+            disabled={isLoading}
+            className="rounded-full border-[#676666] h-12 px-4"
           />
 
           <Button
             type="submit"
+            disabled={isLoading}
             className="w-full h-12 rounded-full bg-[#dd8256] hover:bg-[#dd8256]/90 text-white font-medium"
           >
-            CREATE ACCOUNT
+            {isLoading ? "CREATING ACCOUNT..." : "CREATE ACCOUNT"}
           </Button>
-
-          
 
           <div className="text-center mt-6">
             <p className="text-[#6e7074] text-sm">
