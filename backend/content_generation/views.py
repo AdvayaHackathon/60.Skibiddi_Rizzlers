@@ -564,3 +564,5 @@ def get_itinerary_by_id(request, id):
             {"error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
