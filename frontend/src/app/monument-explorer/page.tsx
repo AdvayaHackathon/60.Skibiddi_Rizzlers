@@ -53,7 +53,7 @@ export default function StreetViewExplorer() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-white p-4">
       <Navbar/>
-      <h1 className="text-3xl font-bold mb-8">Street View</h1>
+      <h1 className="text-3xl font-bold mb-8  font-['Plus_Jakarta_Sans',Helvetica] mt-10">Explore the monuments</h1>
 
       <div className="flex w-full max-w-xl mb-8">
         <div className="relative flex-grow">
