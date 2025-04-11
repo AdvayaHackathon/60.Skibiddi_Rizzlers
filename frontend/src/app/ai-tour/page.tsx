@@ -150,13 +150,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import Navbar from "@/components/home/navbar"
 
-// Sample cities for autocomplete
-const cities = [
-  "New York", "London", "Paris", "Tokyo", "Sydney",
-  "Rome", "Barcelona", "Dubai", "Singapore", "Hong Kong",
-  "Bangkok", "Istanbul", "Amsterdam", "Berlin", "Prague",
-  "Vienna", "Madrid", "Venice", "San Francisco", "Rio de Janeiro",
-]
 
 // Sample interests data
 const interestCategories = [
@@ -193,10 +186,7 @@ export default function TravelItineraryPlanner() {
   // Handle destination input and suggestions
   useEffect(() => {
     if (formData.location.length > 0) {
-      const filteredCities = cities.filter((city) => 
-        city.toLowerCase().includes(formData.location.toLowerCase())
-      )
-      setSuggestions(filteredCities)
+  
       setShowSuggestions(true)
     } else {
       setSuggestions([])
@@ -320,7 +310,7 @@ export default function TravelItineraryPlanner() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white font-['Plus_Jakarta_Sans',Helvetica]">
       <Navbar />
       <div className="h-24"></div>
       <div className="max-w-3xl mx-auto px-4 py-4">
@@ -371,7 +361,7 @@ export default function TravelItineraryPlanner() {
                     onChange={handleLocationChange}
                     onFocus={() => formData.location && setShowSuggestions(true)}
                     placeholder="e.g., Chikmagalur, India"
-                    className="w-full pl-10"
+                    className="w-full pl-10 rounded-4xl"
                   />
                 </div>
 
@@ -395,7 +385,7 @@ export default function TravelItineraryPlanner() {
               <Button
                 onClick={nextStep}
                 disabled={!formData.location.trim()}
-                className="w-full py-2 bg-[#DD8256] hover:bg-[#c27249] text-white"
+                className="w-[100px] rounded-4xl py-2 bg-[#DD8256] hover:bg-[#c27249] text-white"
               >
                 Next
               </Button>
@@ -468,13 +458,13 @@ export default function TravelItineraryPlanner() {
                 <Button 
                   onClick={prevStep} 
                   variant="outline" 
-                  className="text-sm font-medium text-gray-700"
+                  className="text-sm rounded-4xl font-medium text-gray-700"
                 >
                   Back
                 </Button>
                 <Button
                   onClick={nextStep}
-                  className="bg-[#DD8256] hover:bg-[#c27249] text-white"
+                  className="bg-[#DD8256] rounded-4xl hover:bg-[#c27249] text-white"
                 >
                   Next
                 </Button>
@@ -573,10 +563,10 @@ export default function TravelItineraryPlanner() {
                   placeholder="Tell us about your preferences (e.g., vegetarian food, adventure level, accommodation preferences, budget constraints, etc.)"
                   value={formData.preferences}
                   onChange={handlePreferencesChange}
-                  className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="w-full min-h-[20px] rounded-xl border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Example: "I prefer vegetarian food, moderate adventure activities, budget-friendly accommodations, and want to avoid crowds."
+                  {/* Example: "I prefer vegetarian food, moderate adventure activities, budget-friendly accommodations, and want to avoid crowds." */}
                 </p>
               </div>
 
@@ -584,14 +574,14 @@ export default function TravelItineraryPlanner() {
                 <Button 
                   onClick={prevStep} 
                   variant="outline" 
-                  className="text-sm font-medium text-gray-700"
+                  className="text-sm font-medium rounded-4xl text-gray-700"
                 >
                   Back
                 </Button>
                 <Button
                   onClick={handleSubmit}
                   disabled={loading}
-                  className="bg-[#DD8256] hover:bg-[#c27249] text-white"
+                  className="bg-[#DD8256] rounded-full hover:bg-[#c27249] text-white"
                 >
                   {loading ? (
                     <span className="flex items-center justify-center">
