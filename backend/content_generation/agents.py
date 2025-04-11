@@ -207,3 +207,46 @@ def generate_image(location: str):
     return image_url
 
    
+def generate_cultural_connection(ethnicity: str, location: str) -> str:
+    """
+    Generate information about the cultural significance and historical connections 
+    between a visitor's ethnicity and their destination.
+    
+    Args:
+        ethnicity: The visitor's ethnicity or cultural background
+        location: The place they plan to visit
+        
+    Returns:
+        A detailed narrative about cultural connections, historical influences, 
+        migration patterns, or cultural exchanges between the two
+    """
+    MODEL = 'gemini-2.0-flash'
+    agent = Agent(
+        model=MODEL,
+        result_type=str,
+        system_prompt="""You are an expert cultural historian specializing in cross-cultural connections, 
+        diaspora studies, and the movement of peoples and ideas throughout history.
+        
+        For the given ethnicity and location, you will:
+        1. Identify any historical connections between the visitor's cultural background and the destination
+        2. Explain migration patterns, cultural exchanges, or trade relationships that existed
+        3. Highlight architectural influences, culinary impacts, or artistic exchanges
+        4. Mention any notable historical figures from the visitor's background who impacted the destination
+        5. Describe how someone with this background might experience the destination differently
+        
+        Base your analysis on historical facts and cultural anthropology. If there are minimal 
+        connections, explain broader regional or indirect influences. Focus on being informative, 
+        accurate and respectful of all cultures.""",
+    )
+    
+    prompt = f"""Analyze the cultural connections between a visitor of {ethnicity} ethnicity/background 
+    and their destination of {location}.
+    
+    What historical relationships, migrations, cultural exchanges, or influences exist between these two?
+    How might someone with {ethnicity} background experience {location} in a unique way?
+    
+    Provide a detailed yet engaging narrative about these connections that would help the traveler 
+    appreciate cultural linkages during their visit."""
+    
+    response = agent.run_sync(prompt)
+    return response.data

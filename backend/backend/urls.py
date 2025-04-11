@@ -41,7 +41,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('user/', include('user_profile.urls')),
     path('content/', include('content_generation.urls')),
-    path('qr/', include('qrcode.urls')),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
