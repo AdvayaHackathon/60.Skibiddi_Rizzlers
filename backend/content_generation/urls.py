@@ -10,4 +10,5 @@ urlpatterns = [
     # New URLs for itinerary retrieval
     path('user-itineraries/', views.get_user_itineraries, name='user_itineraries'),
     path('itinerary/<int:id>/', views.get_itinerary_by_id, name='itinerary_detail'),
+
 ]

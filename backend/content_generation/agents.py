@@ -134,6 +134,7 @@ def generate_itinerary(location: str, duration: int = 3, interests: str = ""):
         narrative that captivates your audience.""",
     )
     prompt = f"Create a personalized itinerary for the location {location} for {duration} number of days based on the users interests: {interests} in markdown."
+    prompt += "Make sure to add at least 100 words for each day."
     response = agent.run_sync(prompt)
     
     # Enhance the response with real images
@@ -204,4 +205,5 @@ def generate_image(location: str):
     
     image_url = response.data[0].url
     return image_url
-    
+
+   
