@@ -8,7 +8,7 @@ import json
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from .agents import generate_folk_lore, generate_itinerary, identify_image_and_generate_content, generate_image
+from .agents import generate_folk_lore, generate_itinerary, identify_image_and_generate_content, generate_image, generate_cultural_connection
 from .models import Itinerary, ItineraryDay, ItineraryImage
 
 # Create your views here.
@@ -49,7 +49,7 @@ from .models import Itinerary, ItineraryDay, ItineraryImage
     }
 )
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+# @permission_classes([IsAuthenticated])
 def generate_folk_lore_view(request):
     """
     Generate folk lore content based on the provided location.
@@ -566,3 +566,74 @@ def get_itinerary_by_id(request, id):
         )
 
 
+@swagger_auto_schema(
+    method='post',
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['ethnicity', 'location'],
+        properties={
+            'ethnicity': openapi.Schema(type=openapi.TYPE_STRING, description='The visitor\'s ethnicity or cultural background'),
+            'location': openapi.Schema(type=openapi.TYPE_STRING, description='The destination they plan to visit'),
+        },
+    ),
+    responses={
+        status.HTTP_200_OK: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'connection': openapi.Schema(type=openapi.TYPE_STRING, description='Cultural connection narrative'),
+            }
+        ),
+        status.HTTP_400_BAD_REQUEST: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'error': openapi.Schema(type=openapi.TYPE_STRING, description='Error message')
+            }
+        ),
+        status.HTTP_500_INTERNAL_SERVER_ERROR: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'error': openapi.Schema(type=openapi.TYPE_STRING, description='Error message')
+            }
+        ),
+    }
+)
+@api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+def generate_cultural_connection_view(request):
+    """
+    Generate information about cultural connections between a visitor's ethnicity and their destination.
+    Provides historical context and perspectives to enhance travel experience.
+    """
+    try:
+        # Parse request data
+        data = request.data
+        ethnicity = data.get('ethnicity')
+        location = data.get('location')
+        
+        # Validate required fields
+        if not ethnicity:
+            return Response(
+                {"error": "Ethnicity is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not location:
+            return Response(
+                {"error": "Location is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Generate the cultural connection narrative
+        connection = generate_cultural_connection(ethnicity, location)
+        
+        # Return the response
+        return Response(
+            {"connection": connection},
+            status=status.HTTP_200_OK
+        )
+    
+    except Exception as e:
+        return Response(
+            {"error": str(e)}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
