@@ -1,0 +1,176 @@
+import cv2
+import mediapipe as mp
+import numpy as np
+import time
+
+def crop_shirt_top(img, top_px=40):
+    return img[top_px:, :, :]
+
+def rotate_image(image, angle):
+    h, w = image.shape[:2]
+    center = (w // 2, h // 2)
+    M = cv2.getRotationMatrix2D(center, angle, 1.0)
+    return cv2.warpAffine(image, M, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
+
+def slim_shirt(image, final_width, top_taper=0.0, bottom_taper=0.15):
+    h, w = image.shape[:2]
+    top_end = int(h * 0.4)
+    bottom_start = top_end
+
+    slices = []
+    for i in range(h):
+        if i < top_end:
+            scale = 1.0 - (i / top_end) * top_taper
+        else:
+            scale = 1.0 - ((i - bottom_start) / (h - bottom_start)) * bottom_taper
+
+        new_w = int(final_width * scale)
+        resized_row = cv2.resize(image[i:i+1, :, :], (new_w, 1), interpolation=cv2.INTER_LINEAR)
+        pad = (final_width - new_w) // 2
+        padded_row = cv2.copyMakeBorder(resized_row, 0, 0, pad, final_width - new_w - pad, cv2.BORDER_CONSTANT, value=[0, 0, 0, 0])
+        slices.append(padded_row)
+
+    return np.vstack(slices)
+
+def overlay_transparent_partial(background, overlay, x, y):
+    bh, bw = background.shape[:2]
+    h, w = overlay.shape[:2]
+
+    x1, y1 = max(x, 0), max(y, 0)
+    x2, y2 = min(x + w, bw), min(y + h, bh)
+
+    overlay_x1, overlay_y1 = max(0, -x), max(0, -y)
+    overlay_x2 = overlay_x1 + (x2 - x1)
+    overlay_y2 = overlay_y1 + (y2 - y1)
+
+    if overlay_y2 <= overlay_y1 or overlay_x2 <= overlay_x1:
+        return background
+
+    overlay_crop = overlay[overlay_y1:overlay_y2, overlay_x1:overlay_x2]
+    b, g, r, a = cv2.split(overlay_crop)
+    overlay_rgb = cv2.merge((b, g, r))
+    mask = (a / 255.0)[..., np.newaxis]
+    roi = background[y1:y2, x1:x2]
+    blended = roi * (1 - mask) + overlay_rgb * mask
+    background[y1:y2, x1:x2] = blended.astype(np.uint8)
+    return background
+
+# Load multiple shirts safely
+shirt_paths = ["tshirt1.png", "tshirt2.png", "chudidhar.png", "jammu.png", "kimono.png", "saree.png"]
+shirt_images = []
+for path in shirt_paths:
+    img = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+    if img is None:
+        print(f"[ERROR] Failed to load image: {path}")
+        continue
+    shirt_images.append(crop_shirt_top(img))
+
+if not shirt_images:
+    raise RuntimeError("No shirt images were successfully loaded.")
+
+shirt_index = 0
+shirt_img = shirt_images[shirt_index]
+
+# Setup
+cap = cv2.VideoCapture(0)
+mp_pose = mp.solutions.pose
+pose = mp_pose.Pose()
+
+# Controls
+vertical_offset = 0
+top_taper_strength = 0.0
+bottom_taper_strength = 0.15
+snapshot_counter = 0
+shirt_scale = 1.0  # <-- New: overall shirt scaling factor
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    frame = cv2.flip(frame, 1)
+    h, w = frame.shape[:2]
+    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    results = pose.process(rgb)
+
+    if results.pose_landmarks:
+        lm = results.pose_landmarks.landmark
+        try:
+            ls = lm[mp_pose.PoseLandmark.LEFT_SHOULDER]
+            rs = lm[mp_pose.PoseLandmark.RIGHT_SHOULDER]
+            lh = lm[mp_pose.PoseLandmark.LEFT_HIP]
+            rh = lm[mp_pose.PoseLandmark.RIGHT_HIP]
+
+            ls_x, ls_y = int(ls.x * w), int(ls.y * h)
+            rs_x, rs_y = int(rs.x * w), int(rs.y * h)
+            lh_y = int(lh.y * h)
+            rh_y = int(rh.y * h)
+
+            neck_x = int((ls_x + rs_x) / 2)
+            neck_y = int((ls_y + rs_y) / 2) - 40 + vertical_offset
+            bottom_y = int((lh_y + rh_y) / 2) + 20 + vertical_offset
+
+            shoulder_width = np.linalg.norm([rs_x - ls_x, rs_y - ls_y])
+            shirt_width = int(min(shoulder_width * 1.45, w * 0.85) * shirt_scale)
+            shirt_height = max(int((bottom_y - neck_y) * 1.15 * shirt_scale), 100)
+
+            skew_factor = int((rs_y - ls_y) * 0.2)
+            x1 = neck_x - shirt_width // 2 + skew_factor
+            y1 = neck_y
+
+            angle = np.degrees(np.arctan2(rs_y - ls_y, rs_x - ls_x))
+            flipped_shirt = cv2.flip(shirt_img, 0)
+            rotated_shirt = rotate_image(flipped_shirt, -angle)
+
+            resized_shirt = cv2.resize(rotated_shirt, (shirt_width, shirt_height))
+            slimmed_shirt = slim_shirt(resized_shirt, shirt_width, top_taper=top_taper_strength, bottom_taper=bottom_taper_strength)
+
+            frame = overlay_transparent_partial(frame, slimmed_shirt, x1, y1)
+
+        except Exception as e:
+            print("Error:", e)
+
+    # Controls and status info
+    cv2.putText(frame, "W/S: Up/Down | A/D: Bottom Slim/Wide | J/L: Top Slim/Wide", (10, 25),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 255, 200), 1)
+    cv2.putText(frame, "1-6: Change Shirt | P: Snapshot | +/-: Size | Q: Quit", (10, 45),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 255, 200), 1)
+
+    cv2.putText(frame, f"Top Taper: {top_taper_strength:.2f}  Bottom Taper: {bottom_taper_strength:.2f}  Offset: {vertical_offset}  Scale: {shirt_scale:.2f}", 
+                (10, h - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
+    cv2.imshow("Virtual Shirt - Dual Control", frame)
+
+    key = cv2.waitKey(1) & 0xFF
+    if key == ord('q'):
+        break
+    elif key == ord('w'):
+        vertical_offset -= 5
+    elif key == ord('s'):
+        vertical_offset += 5
+    elif key == ord('a'):
+        bottom_taper_strength = min(bottom_taper_strength + 0.01, 0.5)
+    elif key == ord('d'):
+        bottom_taper_strength = max(bottom_taper_strength - 0.01, 0.0)
+    elif key == ord('j'):
+        top_taper_strength = min(top_taper_strength + 0.01, 0.5)
+    elif key == ord('l'):
+        top_taper_strength = max(top_taper_strength - 0.01, 0.0)
+    elif key == ord('p'):
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        filename = f"shirt_snapshot_{timestamp}.png"
+        cv2.imwrite(filename, frame)
+        print(f"Saved snapshot: {filename}")
+    elif key in [ord('1'), ord('2'), ord('3'), ord('4'), ord('5'), ord('6')]:
+        new_index = key - ord('1')
+        if new_index < len(shirt_images):
+            shirt_index = new_index
+            shirt_img = shirt_images[shirt_index]
+            print(f"Switched to shirt {shirt_index + 1}")
+    elif key == ord('+') or key == ord('='):  # '+' often requires Shift
+        shirt_scale = min(shirt_scale + 0.05, 2.0)
+    elif key == ord('-'):
+        shirt_scale = max(shirt_scale - 0.05, 0.5)
+
+cap.release()
+cv2.destroyAllWindows()
