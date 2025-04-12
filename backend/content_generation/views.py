@@ -223,7 +223,7 @@ def get_folk_lore_audio(request, story_id):
     }
 )
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])  # Ensure user is authenticated
+# @permission_classes([IsAuthenticated])  # Ensure user is authenticated
 def generate_itinerary_view(request):
     """
     Generate a detailed travel itinerary based on location, duration, and preferences.
