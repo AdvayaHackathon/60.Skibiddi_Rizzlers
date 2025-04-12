@@ -1,5 +1,5 @@
 from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
@@ -8,6 +8,7 @@ from .models import Profile
 from .serializers import ProfileSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from django.db.models import Q
 
 # Create your views here.
 class ProfileViewSet(viewsets.ModelViewSet):
@@ -20,6 +21,36 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    @swagger_auto_schema(
+        method='get',
+        manual_parameters=[
+            openapi.Parameter(
+                'city', openapi.IN_QUERY,
+                description="City name to search for profiles",
+                type=openapi.TYPE_STRING,
+                required=True
+            ),
+        ],
+        responses={
+            status.HTTP_200_OK: ProfileSerializer(many=True),
+        }
+    )
+    @action(detail=False, methods=['get'])
+    def by_city(self, request):
+        """
+        List all profiles for a specific city.
+        """
+        city = request.query_params.get('city')
+        if not city:
+            return Response(
+                {'error': 'City parameter is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        queryset = self.get_queryset().filter(city__icontains=city)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 @swagger_auto_schema(
     method='post',
@@ -106,6 +137,57 @@ def create_user(request):
             'username': user.username,
             'email': user.email
         }, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        return Response(
+            {'error': str(e)}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    
+
+@swagger_auto_schema(
+    method='get',
+    manual_parameters=[
+        openapi.Parameter(
+            'city', openapi.IN_QUERY,
+            description="City name to search for profiles",
+            type=openapi.TYPE_STRING,
+            required=True
+        ),
+    ],
+    responses={
+        status.HTTP_200_OK: ProfileSerializer(many=True),
+        status.HTTP_400_BAD_REQUEST: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'error': openapi.Schema(type=openapi.TYPE_STRING, description='Error message')
+            }
+        ),
+    }
+)
+@api_view(['GET'])
+# @permission_classes([permissions.IsAuthenticated])
+def search_profiles_by_city(request):
+    """
+    Search for user profiles based on city.
+    """
+    try:
+        # Get city parameter from query params
+        city = request.query_params.get('city')
+        
+        if not city:
+            return Response(
+                {'error': 'City parameter is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Perform case-insensitive search
+        profiles = Profile.objects.filter(city__icontains=city)
+        
+        # Serialize the results
+        serializer = ProfileSerializer(profiles, many=True)
+        
+        return Response(serializer.data, status=status.HTTP_200_OK)
         
     except Exception as e:
         return Response(

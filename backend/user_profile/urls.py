@@ -1,11 +1,13 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ProfileViewSet, create_user
+from . import views
 
 router = DefaultRouter()
-router.register(r'profiles', ProfileViewSet)
+router.register(r'profiles', views.ProfileViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('create/', create_user, name='create-user'),
+    path('register/', views.create_user, name='create_user'),
+    # Add this line for the new endpoint
+    path('profiles-by-city/', views.search_profiles_by_city, name='profiles_by_city'),
 ]
