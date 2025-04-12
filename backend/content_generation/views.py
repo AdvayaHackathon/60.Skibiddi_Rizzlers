@@ -7,6 +7,15 @@ from rest_framework import status
 import json
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+import base64
+import os
+import requests
+from django.conf import settings
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+from django.http import HttpResponse
+from pathlib import Path
+import uuid
 
 from .agents import generate_folk_lore, generate_itinerary, identify_image_and_generate_content, generate_image, generate_cultural_connection
 from .models import Itinerary, ItineraryDay, ItineraryImage
@@ -18,14 +27,17 @@ from .models import Itinerary, ItineraryDay, ItineraryImage
         type=openapi.TYPE_OBJECT,
         required=['location'],
         properties={
-            'location': openapi.Schema(type=openapi.TYPE_STRING, description='Location for generating folk lore')
+            'location': openapi.Schema(type=openapi.TYPE_STRING, description='Location for generating folk lore'),
+            'generate_audio': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='Whether to generate audio narration', default=False),
         },
     ),
     responses={
         status.HTTP_200_OK: openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
-                'folk_lore': openapi.Schema(type=openapi.TYPE_STRING, description='Generated folk lore')
+                'folk_lore': openapi.Schema(type=openapi.TYPE_STRING, description='Generated folk lore'),
+                'audio_url': openapi.Schema(type=openapi.TYPE_STRING, description='URL to the audio narration if requested'),
+                'story_id': openapi.Schema(type=openapi.TYPE_STRING, description='Unique identifier for the generated story')
             }
         ),
         status.HTTP_400_BAD_REQUEST: openapi.Schema(
@@ -53,11 +65,12 @@ from .models import Itinerary, ItineraryDay, ItineraryImage
 def generate_folk_lore_view(request):
     """
     Generate folk lore content based on the provided location.
-    Requires authentication.
+    Optionally generates audio narration of the story.
     """
     try:
         data = json.loads(request.body)
         location = data.get('location')
+        generate_audio = data.get('generate_audio', False)
         
         if not location:
             return Response(
@@ -65,12 +78,100 @@ def generate_folk_lore_view(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Generate the folk lore text
         folk_lore = generate_folk_lore(location)
         
+        # Create a unique story ID
+        story_id = str(uuid.uuid4())
+        
+        response_data = {
+            "folk_lore": folk_lore,
+            "story_id": story_id
+        }
+        
+        # If audio generation is requested
+        if generate_audio:
+            try:
+                audio_url = synthesize_speech_and_save(folk_lore, story_id)
+                response_data["audio_url"] = audio_url
+            except Exception as audio_error:
+                # If audio generation fails, still return the text but with an error note
+                response_data["audio_error"] = str(audio_error)
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+        
+    except Exception as e:
         return Response(
-            {"folk_lore": folk_lore},
-            status=status.HTTP_200_OK
+            {"error": str(e)}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+def synthesize_speech_and_save(text, story_id):
+    """
+    Synthesize speech from text using Google Text-to-Speech API and save it to the server.
+    
+    Args:
+        text: The story text to convert to speech
+        story_id: Unique identifier for the story
+        
+    Returns:
+        URL to access the audio file
+    """
+    # Google Cloud TTS API key - store this in settings.py or environment variable
+    api_key = os.getenv('GOOGLE_TTS_API_KEY')  # Add this to your settings.py
+    
+    url = f"https://texttospeech.googleapis.com/v1/text:synthesize?key={api_key}"
+    
+    payload = {
+        "input": {"text": text},
+        "voice": {"languageCode": "en-US", "ssmlGender": "NEUTRAL"},
+        "audioConfig": {"audioEncoding": "MP3"}
+    }
+
+    response = requests.post(url, json=payload)
+
+    if response.status_code == 200:
+        audio_content = response.json()['audioContent']
+        audio_data = base64.b64decode(audio_content)
+        
+        # Define the path where audio will be stored
+        audio_filename = f"{story_id}.mp3"
+        audio_path = f"stories/{audio_filename}"
+        
+        # Save the file using Django's storage system
+        path = default_storage.save(audio_path, ContentFile(audio_data))
+        
+        # Generate URL for the audio file
+        audio_url = default_storage.url(path)
+        
+        return audio_url
+    else:
+        raise Exception(f"Failed to generate speech. Status code: {response.status_code}, Response: {response.text}")
+
+# Add a new endpoint to serve the audio files
+@api_view(['GET'])
+def get_folk_lore_audio(request, story_id):
+    """
+    Retrieve the audio narration for a previously generated folk lore.
+    """
+    try:
+        audio_path = f"stories/{story_id}.mp3"
+        
+        # Check if the file exists
+        if not default_storage.exists(audio_path):
+            return Response(
+                {"error": "Audio file not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get the file from storage
+        file_content = default_storage.open(audio_path).read()
+        
+        # Return the audio file
+        response = HttpResponse(file_content, content_type='audio/mpeg')
+        response['Content-Disposition'] = f'inline; filename="{story_id}.mp3"'
+        return response
+        
     except Exception as e:
         return Response(
             {"error": str(e)}, 

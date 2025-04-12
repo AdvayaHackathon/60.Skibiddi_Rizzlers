@@ -13,4 +13,7 @@ urlpatterns = [
     
     # Add this to your urlpatterns list
     path('cultural-connection/', views.generate_cultural_connection_view, name='cultural_connection'),
+    
+    # Add this to your urlpatterns
+    path('folklore/audio/<str:story_id>/', views.get_folk_lore_audio, name='get_folklore_audio'),
 ]
