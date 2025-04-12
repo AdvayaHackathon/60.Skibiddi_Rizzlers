@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cultura Story Narrator</title>
+  <style>
+    body {
+      margin: 0;
+      background: #0d0d0d;
+      color: #fff;
+      font-family: "Segoe UI", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    audio {
+      display: none;
+    }
+
+    .custom-play {
+      background: #00ffcc;
+      border: none;
+      padding: 20px 40px;
+      font-size: 1.5rem;
+      border-radius: 50px;
+      cursor: pointer;
+      margin-bottom: 2rem;
+      transition: transform 0.2s ease;
+    }
+
+    .custom-play:hover {
+      transform: scale(1.05);
+    }
+
+    /* Subtitles container */
+    .subtitles {
+      width: 80%;
+      max-width: 700px;
+      text-align: center;
+      font-size: 1.5rem;
+      line-height: 2.2rem;
+      position: relative;
+      min-height: 200px;
+      z-index: 10;
+      margin-top: 30px;
+      background: rgba(0, 0, 0, 0.7); /* Background contrast */
+      padding: 20px;
+    }
+
+    /* Each line of subtitles */
+    .line {
+      opacity: 0;
+      color: rgba(255, 255, 255, 0.7); /* Start with low opacity */
+      transition: opacity 0.4s ease;
+      position: absolute;
+      width: 100%;
+      padding: 10px 0;
+      top: 0; /* Set initial top position */
+    }
+
+    /* Current line (highlighted) */
+    .line.current {
+      opacity: 1;
+      color: #00ffcc; /* Highlight color */
+      font-weight: bold;
+      top: 50%; /* Center the current subtitle vertically */
+      transform: translateY(-50%);
+    }
+
+    /* Previous line (low opacity) */
+    .line.previous {
+      opacity: 0.3;
+      color: white;
+      top: 30%; /* Position above the current subtitle */
+      transform: translateY(-50%);
+    }
+
+    /* Upcoming line (low opacity) */
+    .line.upcoming {
+      opacity: 0.3;
+      color: white;
+      top: 70%; /* Position below the current subtitle */
+      transform: translateY(-50%);
+    }
+  </style>
+</head>
+<body>
+  <h1>📖 Cultura Folklore Narration</h1>
+  <audio id="audio" src="output.mp3"></audio>
+  <button id="customPlay" class="custom-play">▶ Play</button>
+  <div class="subtitles" id="subtitles"></div>
+
+  <script>
+    let subtitlesData = []; // This will hold the subtitle lines and timings
+
+    // Function to load story.json and process subtitles
+    async function loadStory() {
+      try {
+        const res = await fetch('story.json');
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const data = await res.json();
+        const text = data.text;
+
+        subtitlesData = processTextToSubtitles(text);
+
+        const container = document.getElementById('subtitles');
+        container.innerHTML = '';
+
+        subtitlesData.forEach((line, i) => {
+          const div = document.createElement('div');
+          div.className = 'line';
+          div.id = `line-${i}`;
+          div.textContent = line.text;
+          container.appendChild(div);
+        });
+      } catch (error) {
+        console.error('Error loading story.json:', error);
+        alert('Failed to load story.json. Please check the file and try again.');
+      }
+    }
+
+    // Function to split text into subtitles with appropriate timing
+    function processTextToSubtitles(text) {
+      const words = text.split(' ');
+      const wordsPerLine = 8; // Adjust this to how many words per line you want
+
+      const subtitleLines = [];
+      let startTime = 0; // Start time in seconds
+
+      for (let i = 0; i < words.length; i += wordsPerLine) {
+        const lineText = words.slice(i, i + wordsPerLine).join(' ');
+        const duration = 3; // Each subtitle line will stay for 3 seconds
+        subtitleLines.push({
+          start: startTime,
+          end: startTime + duration,
+          text: lineText,
+        });
+
+        startTime += duration; // Move to the next line's start time
+      }
+
+      return subtitleLines;
+    }
+
+    // Function to play the story with synchronized subtitles
+    async function playStoryWithSubtitles() {
+      const audio = document.getElementById('audio');
+      audio.currentTime = 0;
+
+      try {
+        await audio.play();
+      } catch (error) {
+        console.error('Audio playback failed:', error);
+        alert('Audio playback failed. Please check your browser settings.');
+        return;
+      }
+
+      let currentLine = 0;
+
+      audio.ontimeupdate = () => {
+        const currentTime = audio.currentTime;
+
+        if (currentLine < subtitlesData.length && currentTime >= subtitlesData[currentLine].start) {
+          if (currentLine > 0) {
+            document.getElementById(`line-${currentLine - 1}`).classList.remove('current');
+            document.getElementById(`line-${currentLine - 1}`).classList.add('previous');
+          }
+
+          document.getElementById(`line-${currentLine}`).classList.add('current');
+          document.getElementById(`line-${currentLine}`).classList.remove('upcoming');
+          currentLine++;
+
+          if (currentLine < subtitlesData.length) {
+            document.getElementById(`line-${currentLine}`).classList.add('upcoming');
+            document.getElementById(`line-${currentLine}`).classList.remove('current');
+          }
+        }
+
+        if (currentLine < subtitlesData.length && currentTime >= subtitlesData[currentLine - 1].end) {
+          document.getElementById(`line-${currentLine - 1}`).classList.remove('current');
+        }
+      };
+
+      audio.onended = () => {
+        document.querySelectorAll('.line').forEach(line => line.classList.remove('current', 'previous', 'upcoming'));
+      };
+    }
+
+    // Play button event listener
+    document.getElementById('customPlay').addEventListener('click', async () => {
+      document.getElementById('customPlay').style.display = 'none'; // Hide play button
+      await loadStory(); // Load the story and subtitles
+      playStoryWithSubtitles(); // Start narration and subtitles
+    });
+  </script>
+</body>
+</html>
