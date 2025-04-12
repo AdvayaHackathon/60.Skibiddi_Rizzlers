@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { Poppins } from "next/font/google";
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import "./globals.css";
 
 // Load fonts as CSS variables
-const poppins = Poppins({
-  variable: "--font-poppins",
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"], // add all weights you need
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'], // choose what you need
+  display: 'swap',
+  variable: '--font-plus-jakarta',
 });
 
 export const metadata: Metadata = {
@@ -21,13 +21,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en"  className={`${poppins.variable}`}>
-      <head>
-        <link rel="icon" href="/favicon.ico" sizes="30x30" />
-      </head>
-      <body className="antialiased" suppressHydrationWarning={true}>
-      {children}
-      </body>
+    <html lang="en" className={`${plusJakarta.variable}`}>
+      <head></head>
+        <body className="antialiased" suppressHydrationWarning={true}>
+          {children}
+        </body>
     </html>
   );
 }
